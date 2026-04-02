@@ -24,7 +24,29 @@ export default function Home() {
 
         if (contentType.includes('application/json')) {
           const errorJson = await response.json().catch(() => null);
-          errorMessage = errorJson?.error ? `${errorJson.error}${errorJson.details ? ': ' + errorJson.details : ''}` : errorMessage;
+          if (errorJson?.downloadUrl) {
+            // It's a success response with URL
+            const downloadUrl = errorJson.downloadUrl;
+            const filename = errorJson.filename || 'video.mp4';
+
+            // Fetch the video URL and download
+            const videoResponse = await fetch(downloadUrl);
+            if (!videoResponse.ok) {
+              throw new Error('Failed to fetch video from URL');
+            }
+
+            const blob = await videoResponse.blob();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+            return;
+          } else {
+            errorMessage = errorJson?.error ? `${errorJson.error}${errorJson.details ? ': ' + errorJson.details : ''}` : errorMessage;
+          }
         } else {
           const text = await response.text().catch(() => null);
           if (text) errorMessage = `${errorMessage}: ${text}`;
@@ -33,7 +55,7 @@ export default function Home() {
         throw new Error(errorMessage);
       }
 
-      // Create a blob from the response and trigger a download
+      // If response is ok and not JSON, treat as direct download (fallback)
       const blob = await response.blob();
       const downloadUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');

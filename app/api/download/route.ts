@@ -27,12 +27,6 @@ export async function GET(request: NextRequest) {
     let options: any = {
       quality: 'highest',
       filter: 'audioandvideo',
-      requestOptions: {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        },
-      },
-      highWaterMark: 1024 * 1024, // 1MB buffer
     };
 
     if (format === 'lowest') {
@@ -41,20 +35,11 @@ export async function GET(request: NextRequest) {
       options = { ...options, quality: format };
     }
 
-    console.log('Creating stream with options:', options);
-    const stream = ytdl.downloadFromInfo(info, options);
-    stream.on('error', (err) => {
-      console.error('ytdl stream error:', err);
-    });
+    const formatInfo = ytdl.chooseFormat(info.formats, options);
+    console.log('Chosen format:', formatInfo.qualityLabel, formatInfo.url);
 
-    const headers = new Headers();
-    headers.set('Content-Disposition', `attachment; filename="${videoTitle}.mp4"`);
-    headers.set('Content-Type', 'video/mp4');
-
-    console.log('Returning response');
-    // Node Readable stream is not assignable to Web ReadableStream for TypeScript, but Next.js supports Node streams in route handlers in nodejs runtime.
-    // @ts-ignore
-    return new NextResponse(stream, { headers });
+    // Return the URL for the client to download
+    return NextResponse.json({ downloadUrl: formatInfo.url, filename: `${videoTitle}.mp4` });
   } catch (error) {
     console.error('Error downloading video route:', error);
     const message = error instanceof Error ? error.message : 'Unknown error';
